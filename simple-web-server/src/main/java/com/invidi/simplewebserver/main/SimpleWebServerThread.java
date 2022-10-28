@@ -91,24 +91,29 @@ public class SimpleWebServerThread implements Runnable {
                         String query = uri.getQuery();
                         Map<String, String> key2value = Utility.parseQueryString(query);
 
-                        Annotation[][] parameterAnnotations = m.getParameterAnnotations();
-                        String[] params = new String[parameterAnnotations.length];
-                        for (int i = 0; i < parameterAnnotations.length; i++)
-                            for (int j = 0; j < parameterAnnotations[i].length; j++) {
-                                QueryParam qp = (QueryParam) parameterAnnotations[i][j];
-                                String queryKey = qp.value();
-                                params[i] = key2value.get(queryKey);
+                        //no query
+                        if (key2value == null || key2value.isEmpty()) {
+                            writeResponse(out, dataOut, HttpStatus.NOT_FOUND.toString(), "application/json", 0, null);
+                        } else {
+                            Annotation[][] parameterAnnotations = m.getParameterAnnotations();
+                            String[] params = new String[parameterAnnotations.length];
+                            for (int i = 0; i < parameterAnnotations.length; i++)
+                                for (int j = 0; j < parameterAnnotations[i].length; j++) {
+                                    QueryParam qp = (QueryParam) parameterAnnotations[i][j];
+                                    String queryKey = qp.value();
+                                    params[i] = key2value.get(queryKey);
+                                }
+                            m.setAccessible(true);
+                            Object result = m.invoke(controller, params);
+                            if (result != null) {
+                                ObjectMapper mapper = new ObjectMapper();
+                                String resultAsString = mapper.writeValueAsString(result);
+                                writeResponse(out, dataOut, HttpStatus.OK.toString(), "application/json", resultAsString.length(), resultAsString.getBytes(StandardCharsets.UTF_8));
+                            } else {
+                                writeResponse(out, dataOut, HttpStatus.OK.toString(), "application/json", 0, null);
                             }
-                        m.setAccessible(true);
-                        Object result = m.invoke(controller, params);
-                        if(result!=null) {
-                            ObjectMapper mapper = new ObjectMapper();
-                            String resultAsString = mapper.writeValueAsString(result);
-                            writeResponse(out, dataOut, HttpStatus.OK.toString(), "application/json", resultAsString.length(), resultAsString.getBytes(StandardCharsets.UTF_8));
-                        }else {
-                            writeResponse(out, dataOut, HttpStatus.OK.toString(), "application/json", 0, null);
-               }
-                        break;
+                            break;
+                        }
                     }
                 }
             }
